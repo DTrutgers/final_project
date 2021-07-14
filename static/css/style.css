@@ -207,6 +207,12 @@ section .image-container {
     color: #fff;
 }
 
+.graph3 .tick text {
+    fill: white;
+    stroke:white;
+    color:white;
+}
+
 .svg-container {
     display: inline-block;
     position: relative;

@@ -1,13 +1,7 @@
 console.log("this is where it begins")
 
-var url = "https://harryawsbucket.s3.us-east-2.amazonaws.com/bitcoin.csv"
 
-d3.csv(url, function (data) {
-  console.log(data)
-})
-
-
-d3.csv(url, function (data) {
+d3.csv("./static/data/bitcoin.csv", function (data) {
     console.log(data)
 
     var dates = [];
@@ -186,7 +180,7 @@ d3.csv("./static/data/average_volume.csv", function (d) {
         values: year_vol,
         labels: year,
         type: 'pie',
-        textinfo:"label+percent",
+        textinfo:"label+value",
         textposition:"outside"
     };
 
@@ -223,28 +217,22 @@ d3.csv("./static/data/average_volume.csv", function (d) {
 // Mike Tyburczy Graph //
 
 
-var m = [20, 20, 30, 20],
-    w = 800 - m[1] - m[3],
-    h = 400 - m[0] - m[2];
+var m = [70, 70, 100, 70],
+    w = 960 - m[1] - m[3],
+    h = 500 - m[0] - m[2];
+    padding = 100;
 
 var x,
     y,
-    duration = 3000,
+    duration = 4000,
     delay = 500;
 
 var color = d3.scale.category10();
 
-var svg = d3.select("#graph3")
-    // .append("div")
-    // .classed("svg-container", true)
-    // .append("svg")
-    // .attr("preserveAspectRatio", "xMidYMid meet")
-    // .attr("viewBox", "0 0 960 700")
-    // .classed("svg-content", true)
-    .append("svg")
+var svg = d3.select("#graph3").append("svg")
     .attr("width", w + m[1] + m[3])
     .attr("height", h + m[0] + m[2])
-    .append("g")
+  .append("g")
     .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
 
 var stocks,
@@ -268,7 +256,7 @@ var area = d3.svg.area()
     .x(function(d) { return x(d.date); })
     .y1(function(d) { return y(d.price); });
 
-d3.csv("https://harryawsbucket.s3.us-east-2.amazonaws.com/combined2.csv", function(data) {
+d3.csv("./static/data/combined2.csv", function(data) {
   var parse = d3.time.format("%b %Y").parse;
   console.log(data);
 
@@ -278,14 +266,14 @@ d3.csv("https://harryawsbucket.s3.us-east-2.amazonaws.com/combined2.csv", functi
       .entries(stocks = data);
 
   // Parse dates and numbers. We assume values are sorted by date.
-  // Also compute the maximum price per symbol, needed for the y-domain.
+  // Also compute the max price per symbol, needed for the y-domain.
   symbols.forEach(function(s) {
     s.values.forEach(function(d) { d.date = parse(d.date); d.price = +d.price; });
     s.maxPrice = d3.max(s.values, function(d) { return d.price; });
     s.sumPrice = d3.sum(s.values, function(d) { return d.price; });
   });
 
-  // Sort by maximum price, descending.
+  // Sort by max price, descending.
   symbols.sort(function(a, b) { return b.maxPrice - a.maxPrice; });
 
   var g = svg.selectAll("g")
@@ -306,8 +294,41 @@ function lines() {
     d3.max(symbols, function(d) { return d.values[d.values.length - 1].date; })
   ]);
 
+  var  date_format = d3.time.format("%m/%y");
+
+  var x_axis = d3.svg.axis()
+    .orient("bottom")
+    .scale(x)
+    .tickFormat(date_format)
+    
+
+  svg.append("g")
+    .attr("transform", "translate(0," + (h + 100 - padding) + ")")
+    .text("Dates")
+    .style("font", "10px times")
+    .style({ 'stroke': 'white', 'fill': 'white', 'stroke-width': '0.5px'})
+    .call(x_axis);
+
+  svg.append("text")
+    .attr("text-anchor", "middle") 
+    .attr("transform", "translate(" + (padding-125) + "," + (h / 2) + ")rotate(-90)") 
+    .text("Price");
+
+  svg.append("text")
+    .attr("text-anchor", "middle") 
+    .attr("transform", "translate(" + (w / 2) + "," + (h + 80 - (padding / 3)) + ")")
+    .text("Time")
+
+  svg.append("text")
+    .attr("x", (w / 2))             
+    .attr("text-anchor", "middle")  
+    .style("font-size", "16px") 
+    .style("text-decoration", "underline")  
+    .text("Price Over Previous 5 Years");
+
   var g = svg.selectAll(".symbol")
       .attr("transform", function(d, i) { return "translate(0," + (i * h / 4 + 10) + ")"; });
+
 
   g.each(function(d) {
     var e = d3.select(this);
@@ -619,143 +640,4 @@ function stackedBar() {
             .attr("width", x.rangeBand())
             .style("stroke-opacity", 1);
       });
-
-  setTimeout(transposeBar, duration + symbols[0].values.length * 10 + delay);
-}
-
-function transposeBar() {
-  x
-      .domain(symbols.map(function(d) { return d.key; }))
-      .rangeRoundBands([0, w], .2);
-
-  y
-      .domain([0, d3.max(symbols.map(function(d) { return d3.sum(d.values.map(function(d) { return d.price; })); }))]);
-
-  var stack = d3.layout.stack()
-      .x(function(d, i) { return i; })
-      .y(function(d) { return d.price; })
-      .out(function(d, y0, y) { d.price0 = y0; });
-
-  stack(d3.zip.apply(null, symbols.map(function(d) { return d.values; }))); // transpose!
-
-  var g = svg.selectAll(".symbol");
-
-  var t = g.transition()
-      .duration(duration / 2);
-
-  t.selectAll("rect")
-      .delay(function(d, i) { return i * 10; })
-      .attr("y", function(d) { return y(d.price0 + d.price) - 1; })
-      .attr("height", function(d) { return h - y(d.price) + 1; })
-      .attr("x", function(d) { return x(d.symbol); })
-      .attr("width", x.rangeBand())
-      .style("stroke-opacity", 1e-6);
-
-  t.select("text")
-      .attr("x", 0)
-      .attr("transform", function(d) { return "translate(" + (x(d.key) + x.rangeBand() / 2) + "," + h + ")"; })
-      .attr("dy", "1.31em")
-      .each("end", function() { d3.select(this).attr("x", null).attr("text-anchor", "middle"); });
-
-  svg.select("line").transition()
-      .duration(duration)
-      .attr("x2", w);
-
-  setTimeout(donut,  duration / 2 + symbols[0].values.length * 10 + delay);
-}
-
-function donut() {
-  var g = svg.selectAll(".symbol");
-
-  g.selectAll("rect").remove();
-
-  var pie = d3.layout.pie()
-      .value(function(d) { return d.sumPrice; });
-
-  var arc = d3.svg.arc();
-
-  g.append("path")
-      .style("fill", function(d) { return color(d.key); })
-      .data(function() { return pie(symbols); })
-    .transition()
-      .duration(duration)
-      .tween("arc", arcTween);
-
-  g.select("text").transition()
-      .duration(duration)
-      .attr("dy", ".31em");
-
-  svg.select("line").transition()
-      .duration(duration)
-      .attr("y1", 2 * h)
-      .attr("y2", 2 * h)
-      .remove();
-
-  function arcTween(d) {
-    var path = d3.select(this),
-        text = d3.select(this.parentNode.appendChild(this.previousSibling)),
-        x0 = x(d.data.key),
-        y0 = h - y(d.data.sumPrice);
-
-    return function(t) {
-      var r = h / 2 / Math.min(1, t + 1e-3),
-          a = Math.cos(t * Math.PI / 2),
-          xx = (-r + (a) * (x0 + x.rangeBand()) + (1 - a) * (w + h) / 2),
-          yy = ((a) * h + (1 - a) * h / 2),
-          f = {
-            innerRadius: r - x.rangeBand() / (2 - a),
-            outerRadius: r,
-            startAngle: a * (Math.PI / 2 - y0 / r) + (1 - a) * d.startAngle,
-            endAngle: a * (Math.PI / 2) + (1 - a) * d.endAngle
-          };
-
-      path.attr("transform", "translate(" + xx + "," + yy + ")");
-      path.attr("d", arc(f));
-      text.attr("transform", "translate(" + arc.centroid(f) + ")translate(" + xx + "," + yy + ")rotate(" + ((f.startAngle + f.endAngle) / 2 + 3 * Math.PI / 2) * 180 / Math.PI + ")");
-    };
-  }
-
-  setTimeout(donutExplode, duration + delay);
-}
-
-function donutExplode() {
-  var r0a = h / 2 - x.rangeBand() / 2,
-      r1a = h / 2,
-      r0b = 2 * h - x.rangeBand() / 2,
-      r1b = 2 * h,
-      arc = d3.svg.arc();
-
-  svg.selectAll(".symbol path")
-      .each(transitionExplode);
-
-  function transitionExplode(d, i) {
-    d.innerRadius = r0a;
-    d.outerRadius = r1a;
-    d3.select(this).transition()
-        .duration(duration / 2)
-        .tween("arc", tweenArc({
-          innerRadius: r0b,
-          outerRadius: r1b
-        }));
-  }
-
-  function tweenArc(b) {
-    return function(a) {
-      var path = d3.select(this),
-          text = d3.select(this.nextSibling),
-          i = d3.interpolate(a, b);
-      for (var key in b) a[key] = b[key]; // update data
-      return function(t) {
-        var a = i(t);
-        path.attr("d", arc(a));
-        text.attr("transform", "translate(" + arc.centroid(a) + ")translate(" + w / 2 + "," + h / 2 +")rotate(" + ((a.startAngle + a.endAngle) / 2 + 3 * Math.PI / 2) * 180 / Math.PI + ")");
-      };
-    }
-  }
-
-  setTimeout(function() {
-    svg.selectAll("*").remove();
-    svg.selectAll("g").data(symbols).enter().append("g").attr("class", "symbol");
-    lines();
-  }, duration);
 }
